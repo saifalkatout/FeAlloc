@@ -1,0 +1,81 @@
+const STATE_FREE: u256 = 0
+const STATE_USED: u256 = 1
+const STATE_TOP: u256 = 2
+const STATE_END: u256 = 3
+const STATE_ALIGN: u256 = 4
+const STATE_FLAGS: u256 = 5
+const STATE_MIN_SPLIT: u256 = 6
+
+
+const MASK_COMPACT: u256 = 1
+const MASK_SPLIT: u256 = 2
+
+const SIZEOF_STATE: u256 = 7 * 4
+
+const MEM_BLOCK_SIZE: u256 = 0
+const MEM_BLOCK_NEXT: u256 = 1
+
+const SIZEOF_MEM_BLOCK: u256 = 2 * 4
+
+struct mempool { 
+  pub start: u256
+  pub u8: Array<u8, 8>
+	pub u32: Array<u32, 8>
+	pub state: Array<u32, 8> // SIZEOF_MEM_BLOCK
+
+  fn listStats(mut self, block: u256) -> (u256,u256){
+    let mut count: u256 = 0
+    let mut size: u256 = 0
+    while(block != SIZEOF_MEM_BLOCK){ 
+      count += self.blockSize(block)
+      size += self.blockNext(block)
+
+    }
+    return (count,size)
+  }
+
+
+
+  fn blockSize(self,block: u256) -> u32{
+    return self.u32[block>>2 + MEM_BLOCK_SIZE]
+  }
+   fn blockNext(self,block: u256) -> u32{
+    return self.u32[(block>>2) + MEM_BLOCK_NEXT]
+  }
+
+  fn malloc(mut self, bytes: u256) -> u256{
+		if (bytes <= 0) {
+			return 0;
+		}
+		let end: u32 = self.state[STATE_END]
+		let mut top: u32 = self.state[STATE_TOP]
+		let mut block: u32 = self.state[STATE_FREE]
+		let mut prev: u32 = 0;
+		while (u256(block) < SIZEOF_MEM_BLOCK) {
+			let blockSize: u256 = self.blockSize(block)
+			let isTop:bool = u256(block) + blockSize >= top;
+			if  isTop or (blockSize >= SIZEOF_MEM_BLOCK) { //check for padded
+				// return this.mallocTop(
+				// 	block,
+				// 	prev,
+				// 	blockSize,
+				// 	paddedSize,
+				// 	isTop
+				// );
+			}
+			prev = block;
+			self.state[STATE_FREE] = self.blockNext(block)
+		}
+		block = top;
+		top = u32(u256(block) + SIZEOF_MEM_BLOCK)
+		if (top <= end) {
+			// this.initBlock(block, paddedSize, this._used);
+			// this._used = block;
+			// this.top = top;
+			// return blockDataAddress(block);
+		}
+		return 0;
+	}
+}
+
+
