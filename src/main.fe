@@ -1,29 +1,29 @@
-const STATE_FREE: u256 = 0
-const STATE_USED: u256 = 1
-const STATE_TOP: u256 = 2
-const STATE_END: u256 = 3
-const STATE_ALIGN: u256 = 4
-const STATE_FLAGS: u256 = 5
-const STATE_MIN_SPLIT: u256 = 6
+const STATE_FREE: u32 = 0
+const STATE_USED: u32 = 1
+const STATE_TOP: u32 = 2
+const STATE_END: u32 = 3
+const STATE_ALIGN: u32 = 4
+const STATE_FLAGS: u32 = 5
+const STATE_MIN_SPLIT: u32 = 6
 
 
-const MASK_COMPACT: u256 = 1
-const MASK_SPLIT: u256 = 2
+const MASK_COMPACT: u32 = 1
+const MASK_SPLIT: u32 = 2
 
-const SIZEOF_STATE: u256 = 7 * 4
+const SIZEOF_STATE: u32 = 7 * 4
 
-const MEM_BLOCK_SIZE: u256 = 0
-const MEM_BLOCK_NEXT: u256 = 1
+const MEM_BLOCK_SIZE: u32 = 0
+const MEM_BLOCK_NEXT: u32 = 1
 
-const SIZEOF_MEM_BLOCK: u256 = 2 * 4
+const SIZEOF_MEM_BLOCK: u32 = 2 * 4
 
 struct mempool { 
   pub start: u256
   pub u8: Array<u8, 8>
 	pub u32: Array<u32, 8>
-	pub state: Array<u32, 8> // SIZEOF_MEM_BLOCK
+	pub state: Array<u32, 24> // SIZEOF_MEM_BLOCK
 
-  fn listStats(mut self, block: u256) -> (u256,u256){
+  fn listStats(self, block: u256) -> (u256,u256){
     let mut count: u256 = 0
     let mut size: u256 = 0
     while(block != SIZEOF_MEM_BLOCK){ 
@@ -43,25 +43,26 @@ struct mempool {
     return self.u32[(block>>2) + MEM_BLOCK_NEXT]
   }
 
-  fn malloc(mut self, bytes: u256) -> u256{
+  fn malloc(mut self, bytes: u32) -> u256{
 		if (bytes <= 0) {
 			return 0;
 		}
+		let paddedSize: u32 = bytes + SIZEOF_MEM_BLOCK;
 		let end: u32 = self.state[STATE_END]
 		let mut top: u32 = self.state[STATE_TOP]
 		let mut block: u32 = self.state[STATE_FREE]
 		let mut prev: u32 = 0;
 		while (u256(block) < SIZEOF_MEM_BLOCK) {
-			let blockSize: u256 = self.blockSize(block)
+			let blockSize: u32 = self.blockSize(block)
 			let isTop:bool = u256(block) + blockSize >= top;
 			if  isTop or (blockSize >= SIZEOF_MEM_BLOCK) { //check for padded
-				// return this.mallocTop(
-				// 	block,
-				// 	prev,
-				// 	blockSize,
-				// 	paddedSize,
-				// 	isTop
-				// );
+				return self.mallocTop(
+					block,
+					prev,
+					blockSize,
+					paddedSize,
+					isTop
+				);
 			}
 			prev = block;
 			self.state[STATE_FREE] = self.blockNext(block)
@@ -69,12 +70,91 @@ struct mempool {
 		block = top;
 		top = u32(u256(block) + SIZEOF_MEM_BLOCK)
 		if (top <= end) {
-			// this.initBlock(block, paddedSize, this._used);
-			// this._used = block;
-			// this.top = top;
-			// return blockDataAddress(block);
+			self.initBlock(block, size: paddedSize, next: self.state[STATE_USED]);
+			self.state[STATE_USED] = block;
+			self.state[STATE_TOP] = top;
+			return mempool::blockDataAddress(blockAddress: block);
 		}
 		return 0;
+	}
+
+	fn mallocTop(mut self,block: u32,prev: u32,blockSize: u32,paddedSize: u32,isTop: bool) -> u256 {
+		if (isTop and (block) + paddedSize > self.state[STATE_END]){ return 0 }
+		if (prev > 0) {
+			self.unlinkBlock(prev, block);
+		} else {
+			self.state[STATE_FREE] = self.blockNext(block);
+		}
+		self.setBlockNext(block, next: self.state[STATE_USED]);
+		self.state[STATE_USED] = block;
+		if (isTop) {
+			self.state[STATE_TOP] = block + self.setBlockSize(block, size: paddedSize);
+		} else if self.state[STATE_FLAGS] == 3{ //check line 338 in original code
+			let excess: u32 = blockSize - paddedSize;
+			if excess >= 16 { // configurable in options in TA
+				self.splitBlock(block, blockSize: paddedSize, excess)
+			} 
+		}
+		return mempool::blockDataAddress(blockAddress: block);
+	}
+
+
+	fn blockDataAddress(blockAddress: u256) -> u256 { 
+		if blockAddress > 0 {
+			return blockAddress + SIZEOF_MEM_BLOCK
+		}
+		else { 
+			return 0
+		}
+	}
+	fn unlinkBlock(mut self, prev: u256, block: u256) {
+		self.setBlockNext(block: prev, next: self.blockNext(block));
+	}
+
+	fn setBlockNext(mut self, block: u256, next: u32) {
+		self.u32[(block >> 2) + MEM_BLOCK_NEXT] = next;
+	}
+
+	fn setBlockSize(mut self, block: u256, size: u32) -> u32{
+		self.u32[(block >> 2) + MEM_BLOCK_SIZE] = size;
+		return size;
+	}
+
+
+	fn initBlock(mut self, block: u32, size: u32, next: u32) -> u32 {
+		let ddd: u32 = block >> 2; //there is no unsigned shift right (no need ig) ?? idx seems to be a reserved word ?? 
+		self.u32[ddd + MEM_BLOCK_SIZE] = size;
+		self.u32[ddd + MEM_BLOCK_NEXT] = next;
+		return block;
+	}
+
+	fn splitBlock(mut self, block: u32, blockSize: u32, excess: u32) {
+		self.insert(
+			block: self.initBlock(
+				block: block + self.setBlockSize(block, size: blockSize),
+				size: excess,
+				next: 0
+			)
+		);
+		// this.doCompact && this.compact(); NO COMPACTING FOR NOW 
+	}
+
+	fn insert(mut self, block: u32) {
+		let mut ptr: u32 = self.state[STATE_FREE];
+		let mut prev: u32 = 0;
+		while (ptr > 0) {
+			if (block <= ptr){
+				break;
+			} 
+			prev = ptr;
+			ptr = self.blockNext(block: ptr);
+		}
+		if (prev > 0) {
+			self.setBlockNext(block: prev, next: block);
+		} else {
+			self.state[STATE_FREE] = block;
+		}
+		self.setBlockNext(block, next: ptr);
 	}
 }
 
