@@ -156,6 +156,73 @@ struct mempool {
 		}
 		self.setBlockNext(block, next: ptr);
 	}
+
+	pub fn realloc(mut self, ptr: u32, bytes: u32) -> u256 {
+		if (bytes <= 0) {
+			return 0;
+		}
+		let oldAddr: u32 = mempool::blockSelfAddress(dataAddress: ptr);
+		let mut newAddr: u32 = 0;
+		let mut block: u32 = self.state[STATE_USED];
+		let mut blockEnd: u32 = 0;
+		let mut pair1: (u32,u32) = (0,0);
+		while (block > 0) {
+			if (block == oldAddr) {
+				pair1 = self.reallocBlock(block, bytes);
+				newAddr = pair1.item0
+				blockEnd = pair1.item1
+				break;
+			}
+			block = self.blockNext(block);
+		}
+		// copy old block contents to new addr
+		if (newAddr > 0 and newAddr != oldAddr) {
+			// self.u8.copyWithin(    ---copyWithin copies data from index arg0 to index arg1 and ending at arg2
+			// 	blockDataAddress(newAddr),
+			// 	blockDataAddress(oldAddr),
+			// 	blockEnd
+			// );
+		}
+		return mempool::blockDataAddress(blockAddress: newAddr);
+	}
+
+	fn reallocBlock(mut self, block: u32, bytes: u32)  -> (u32,u32) {
+		let blockSize: u32 = self.u32[(block >> 2) + MEM_BLOCK_SIZE];
+		let blockEnd: u32 = block + blockSize;
+		let isTop: bool = blockEnd >= self.state[STATE_TOP];
+		self.state[STATE_ALIGN] = bytes + SIZEOF_MEM_BLOCK
+		let paddedSize: u32 = self.state[STATE_ALIGN]
+		// shrink & possibly split existing block
+		if (paddedSize <= blockSize) {
+			if (false) { //self do split
+				let excess: u32 = blockSize - paddedSize;
+				if (excess >= self.state[STATE_MIN_SPLIT]) {
+					self.splitBlock(block, blockSize: paddedSize, excess);
+				} else if (isTop) {
+					self.state[STATE_TOP] = block + paddedSize;
+				}
+			} else if (isTop) {
+				self.state[STATE_TOP] = block + paddedSize;
+			}
+			return (block, blockEnd);
+		}
+		// try to enlarge block if current top
+		if (isTop and block + paddedSize < self.state[STATE_END]) {
+			self.state[STATE_TOP] = block + self.setBlockSize(block, size: paddedSize);
+			return (block, blockEnd);
+		}
+		// fallback to free & malloc
+		//this.free(block);
+		return (mempool::blockSelfAddress(dataAddress: u32(self.malloc(bytes))), blockEnd)
+	}
+	fn blockSelfAddress(dataAddress: u32) -> u32 { 
+			if dataAddress > 0 {
+				return dataAddress - SIZEOF_MEM_BLOCK
+			}
+			else {
+				return 0
+			}
+		}
 }
 
 
