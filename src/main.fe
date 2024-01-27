@@ -215,6 +215,41 @@ struct mempool {
 		//this.free(block);
 		return (mempool::blockSelfAddress(dataAddress: u32(self.malloc(bytes))), blockEnd)
 	}
+
+	//NEEDS THE FOLLOWING FEATURES: 1) TypedArray 2) Some type 3) Generic args 4) array type with byteoffset and BPE 5) Ternary operator
+	// fn reallocArray<T extends TypedArray>(array: T, num: u32) -> T {
+	// 	if(array.buffer !== self.buf)
+
+	// 	let addr: u256 self.realloc(array.byteOffset,
+	// 	num * array.BYTES_PER_ELEMENT)
+
+	// 	return addr ? new array: undefined;
+	// }
+
+	//How to have OR in arg type ??
+	pub fn free(mut self, ptrOrArray: u32) -> bool {
+		let mut addr: u32;
+		addr = ptrOrArray;
+		addr = mempool::blockSelfAddress(dataAddress: addr);
+		let mut block: u32 = self.state[STATE_USED];;
+		let mut prev: u256 = 0;
+		while (block > 0) {
+			if (block == addr) {
+				if (prev > 0) {
+					self.unlinkBlock(prev, block);
+				} else {
+					self.state[STATE_USED] = self.blockNext(block);
+				}
+				self.insert(block);
+				//this.doCompact && this.compact(); No compaction
+				return true;
+			}
+			prev = block;
+			block = self.blockNext(block);
+		}
+		return false;
+	}
+
 	fn blockSelfAddress(dataAddress: u32) -> u32 { 
 			if dataAddress > 0 {
 				return dataAddress - SIZEOF_MEM_BLOCK
@@ -222,7 +257,13 @@ struct mempool {
 			else {
 				return 0
 			}
-		}
+	}
+
+	pub fn freeAll(mut self) {
+		self.state[STATE_FREE] = 0;
+		self.state[STATE_USED] = 0;
+		self.state[STATE_TOP] = u32(self.start + SIZEOF_STATE + SIZEOF_MEM_BLOCK)
+	}
 }
 
 
