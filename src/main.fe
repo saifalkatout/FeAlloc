@@ -15,20 +15,22 @@ const SIZEOF_STATE: u32 = 7 * 4
 const MEM_BLOCK_SIZE: u32 = 0
 const MEM_BLOCK_NEXT: u32 = 1
 
-const SIZEOF_MEM_BLOCK: u32 = 2 * 4
+const SIZEOF_MEM_BLOCK: u32 = 2
 
 struct mempool { 
   pub start: u256
   pub u8: Array<u8, 8>
 	pub u32: Array<u32, 8>
-	pub state: Array<u32, 24> // SIZEOF_MEM_BLOCK
+	pub state: Array<u32, 24> 
 
-  fn listStats(self, block: u256) -> (u256,u256){
-    let mut count: u256 = 0
+  pub fn listStats(self, block: u256) -> (u256,u256){
+    let mut b: u256 = block
+	let mut count: u256 = 0
     let mut size: u256 = 0
-    while(block != SIZEOF_MEM_BLOCK){ 
-      count += self.blockSize(block)
-      size += self.blockNext(block)
+    while(b > 0){ 
+      count += 1
+      size += self.blockSize(block)
+	  b = self.blockNext(block)
 
     }
     return (count,size)
@@ -43,19 +45,19 @@ struct mempool {
     return self.u32[(block>>2) + MEM_BLOCK_NEXT]
   }
 
-  fn malloc(mut self, bytes: u32) -> u256{
+  pub fn malloc(mut self, bytes: u32) -> u256{
 		if (bytes <= 0) {
 			return 0;
 		}
-		let paddedSize: u32 = bytes + SIZEOF_MEM_BLOCK;
+		let paddedSize: u32 = bytes;
 		let end: u32 = self.state[STATE_END]
 		let mut top: u32 = self.state[STATE_TOP]
 		let mut block: u32 = self.state[STATE_FREE]
 		let mut prev: u32 = 0;
-		while (u256(block) < SIZEOF_MEM_BLOCK) {
+		while (block > 0) {
 			let blockSize: u32 = self.blockSize(block)
 			let isTop:bool = u256(block) + blockSize >= top;
-			if  isTop or (blockSize >= SIZEOF_MEM_BLOCK) { //check for padded
+			if  isTop or (blockSize >= paddedSize) { //check for padded
 				return self.mallocTop(
 					block,
 					prev,
@@ -68,7 +70,7 @@ struct mempool {
 			self.state[STATE_FREE] = self.blockNext(block)
 		}
 		block = top;
-		top = u32(u256(block) + SIZEOF_MEM_BLOCK)
+		top = block + paddedSize
 		if (top <= end) {
 			self.initBlock(block, size: paddedSize, next: self.state[STATE_USED]);
 			self.state[STATE_USED] = block;
@@ -136,7 +138,7 @@ struct mempool {
 				next: 0
 			)
 		);
-		// this.doCompact && this.compact(); NO COMPACTING FOR NOW 
+		self.compact()
 	}
 
 	fn insert(mut self, block: u32) {
@@ -227,9 +229,9 @@ struct mempool {
 	// }
 
 	//How to have OR in arg type ??
-	pub fn free(mut self, ptrOrArray: u32) -> bool {
+	pub fn free(mut self, ptr: u32) -> bool {
 		let mut addr: u32;
-		addr = ptrOrArray;
+		addr = ptr;
 		addr = mempool::blockSelfAddress(dataAddress: addr);
 		let mut block: u32 = self.state[STATE_USED];;
 		let mut prev: u256 = 0;
@@ -241,7 +243,7 @@ struct mempool {
 					self.state[STATE_USED] = self.blockNext(block);
 				}
 				self.insert(block);
-				//this.doCompact && this.compact(); No compaction
+				self.compact()
 				return true;
 			}
 			prev = block;
@@ -264,6 +266,121 @@ struct mempool {
 		self.state[STATE_USED] = 0;
 		self.state[STATE_TOP] = u32(self.start + SIZEOF_STATE + SIZEOF_MEM_BLOCK)
 	}
+
+	fn compact(mut self) -> bool {
+		let mut block: u32 = self.state[STATE_FREE]
+		let mut prev: u32 = 0
+		let mut scan: u32 = 0
+		let mut scanPrev: u32
+		let mut res: bool = false
+
+		while(block > 0){
+			scanPrev = block
+			scan = self.blockNext(block)
+
+			while(scan > 0 and scanPrev + self.blockSize(block: scanPrev) == scan){
+				scanPrev = scan
+				scan = self.blockNext(block)
+			}
+
+			if(scanPrev != block){
+				let newSize: u32 = scanPrev - block + self.blockSize(block: scanPrev)
+				self.setBlockSize(block, size: newSize)
+				let next: u32 = self.blockNext(block: scanPrev)
+				let mut tmp: u32 = self.blockNext(block: scanPrev)
+				while(tmp > 0 and tmp != next){
+					let tn: u32 = self.blockNext(block: tmp)
+					self.setBlockNext(block: tmp, next: 0)
+					tmp = tn
+				}
+
+				self.setBlockNext(block, next)
+				res = true
+			}
+
+			if(block + self.blockSize(block) >= self.state[STATE_TOP]){
+				self.state[STATE_TOP] = block
+				if(prev > 0){
+					self.unlinkBlock(prev, block)
+				}
+				else {
+					self.state[STATE_FREE] = self.blockNext(block)
+				}
+
+			}
+			prev = block
+			block = self.blockNext(block)
+
+		}
+
+		return res
+
+	}
+
+	// fn align(addr: u32, size: u32) -> u32{
+	// 	let mut a:u32 = addr
+	// 	let mut s:u32 = size
+	// 	s -= 1
+	// 	return a + s and ~s
+	// }
+
+	pub fn new(mut self) -> mempool{
+		self.u8 =  [0,0,0,0,0,0,0,0]
+		self.u32 =  [0,0,0,0,0,0,0,0]
+		self.state =  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+		return self
+	}
+
+	
+}
+// impl Default for mempool {
+//     fn default() -> mempool {
+//     let mut _u8: Array<u8,8> =  [0,0,0,0,0,0,0,0]
+// 	let mut _u32: Array<u32,8> =  [0,0,0,0,0,0,0,0]
+// 	let mut state: Array<u32,24> =  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+//     return self(start: 0,u8: _u8, u32: _u32, state)
+//     }
+// }
+#test
+fn t1() {
+   let mut _u8: Array<u8,8> =  [0,0,0,0,0,0,0,0]
+	let mut _u32: Array<u32,8> =  [0,0,0,0,0,0,0,0]
+	let mut state: Array<u32,24> =  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+    let mut poolA: mempool = mempool(start: 0,u8: _u8, u32: _u32, state)
+	poolA.malloc(bytes: 48)
+	assert(poolA.free(ptr: 3))
+}
+
+#test
+fn t2() {
+	let mut _u8: Array<u8,8> =  [0,0,0,0,0,0,0,0]
+	let mut _u32: Array<u32,8> =  [0,0,0,0,0,0,0,0]
+	let mut state: Array<u32,24> =  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+    let mut poolA: mempool = mempool(start: 0,u8: _u8, u32: _u32, state)
+	poolA.malloc(bytes: 2)
+	poolA.freeAll()
+	assert(poolA.listStats(block:0).item0  == 0)
+}
+
+#test
+fn t3() {
+	let mut _u8: Array<u8,8> =  [0,0,0,0,0,0,0,0]
+	let mut _u32: Array<u32,8> =  [0,0,0,0,0,0,0,0]
+	let mut state: Array<u32,24> =  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+    let mut poolA: mempool = mempool(start: 0,u8: _u8, u32: _u32, state)
+	poolA.malloc(bytes: 200)
+	poolA.free(ptr: 21)
+}
+
+
+#test
+fn t4() {
+	let mut _u8: Array<u8,8> =  [0,0,0,0,0,0,0,0]
+	let mut _u32: Array<u32,8> =  [0,0,0,0,0,0,0,0]
+	let mut state: Array<u32,24> =  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+    let mut poolA: mempool = mempool(start: 0,u8: _u8, u32: _u32, state)
+	poolA.malloc(bytes: 2)
+	poolA.free(ptr: 100)
 }
 
 
