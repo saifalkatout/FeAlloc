@@ -11,7 +11,7 @@ For the initial stage, the public interface of the memory pool class will includ
 
 - Allocate
 
- Returns a pointer (as a u256) to address in heap space or 0 if allocation failed  
+   Returns a pointer (as a u256) to address in heap space or 0 if allocation failed  
 
 - Reallocate 
 
