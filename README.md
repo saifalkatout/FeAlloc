@@ -42,42 +42,43 @@
 
 ## Memory layout 
 
-### The state of the memory pool consists of  
+The state of the memory pool consists of  
 
-#### free 
+### free 
 
    pointer to first free block header
 
-#### used 
+### used 
 
   pointer to first used block header
 
-#### top
+### top
 
    address of next new block header
 
-#### end
+### end
 
    end address of managed region 
 
-#### minSplit 
+### minSplit 
 
    minimum block size allowed for splitting
 
-### A single memory block consists of
 
-#### Size
+A single memory block consists of
+
+### Size
 
    The size of the block (inluding header & padding)
 
-#### Next
+### Next
  
    Pointer to next block of the same type (free, used)
 
-#### Data
+### Data
 
    Data to be held inside the block (depending on how this project pans out, this can be a memory buffer)
 
 ### Note
 
-###### this project is still a WIP, the initial stage is not complete
+this project is still a WIP, the initial stage is not complete
