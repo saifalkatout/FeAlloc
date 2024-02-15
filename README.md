@@ -32,17 +32,19 @@
 
 ### Coalescing && Splitting:
 
-##### Further optimizations that are being performed under the hood in order to preserver memory space, the goal of each is the following
+#### Further optimizations that are being performed under the hood in order to preserver memory space, the goal of each is the following
 
 - Coalescing
+ 
    The allocator supports coalescing of free memory blocks to minimize fragmentation of the managed address space.
 
 -  Splitting 
+
    In order to avoid unnecessary growing of the heap top, the allocator can split existing free blocks if the user requests allocating a smaller size than that of a suitable free block available.
 
 ### Memory layout 
 
-##### A single memory block consists of:
+#### A single memory block consists of:
 
 - Size
 
@@ -56,7 +58,7 @@
 
    Data to be held inside the block (depending on how this project pans out, this can be a memory buffer)
 
-##### The following constants that can be found in the code, represent the following values
+#### The following constants that can be found in the code, represent the following values
 
 - free 
 
