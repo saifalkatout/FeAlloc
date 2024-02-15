@@ -19,7 +19,7 @@ For the initial stage, the public interface of the memory pool class will includ
 
    Releases given address or array view back into the pool. Returns true if successful.
 
-#### - Free All
+#### - freeAll
 
    Frees all allocated blocks, essentially resets the pool.
 
@@ -44,25 +44,25 @@ Further optimizations that are being performed under the hood in order to preser
 
 ### Memory pool state
 
-#### - free 
+#### - Free 
 
-   pointer to first free block header
+   Pointer to first free block header
 
-#### - used 
+#### - Used 
 
-  pointer to first used block header
+  Pointer to first used block header
 
-#### - top
+#### - Top
 
-   address of next new block header
+   Address of next new block header
 
-#### - end
+#### - End
 
-   end address of managed region 
+   End address of managed region 
 
 #### - minSplit 
 
-   minimum block size allowed for splitting
+   Minimum block size allowed for splitting
 
 
 ### Single memory block state
