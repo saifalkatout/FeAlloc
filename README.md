@@ -28,7 +28,7 @@
    Returns pool statistics
 
 
-## Coalescing && Splitting:
+## Coalescing && Splitting
 
 ### Further optimizations that are being performed under the hood in order to preserve memory space
 
@@ -42,7 +42,7 @@
 
 ## Memory layout 
 
-### The state of each memory pool consists of: 
+### The state of the memory pool consists of  
 
 #### free 
 
@@ -64,7 +64,7 @@
 
    minimum block size allowed for splitting
 
-### A single memory block consists of:
+### A single memory block consists of
 
 #### Size
 
