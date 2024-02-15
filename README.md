@@ -10,24 +10,23 @@
 For the initial stage, the public interface of the memory pool class will include the following: 
 
 	- Allocate
-
-		Returns a pointer (as a u256) to address in heap space or 0 if allocation failed  
+Returns a pointer (as a u256) to address in heap space or 0 if allocation failed  
 
 	- Reallocate 
 
-		Attempts to adjust the size of the block at the given allocated address to new size or if not possible, attempt to allocate a new block and copies contents of current block (if successful, automatically frees old address). Returns new address if successful or else 0.
+Attempts to adjust the size of the block at the given allocated address to new size or if not possible, attempt to allocate a new block and copies contents of current block (if successful, automatically frees old address). Returns new address if successful or else 0.
 
 	- Free
 
-		Releases given address or array view back into the pool. Returns true if successful.
+Releases given address or array view back into the pool. Returns true if successful.
 
 	- Free All
 
-		Frees all allocated blocks, essentially resets the pool.
+Frees all allocated blocks, essentially resets the pool.
 
 	- listStats
 
-		Returns pool statistics
+Returns pool statistics
 
 
 ### Coalescing && Splitting:
