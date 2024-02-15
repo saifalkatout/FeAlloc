@@ -1,15 +1,15 @@
 
 # Fe Allocator 
 
-##### This project is an attempt to replicate the [tiny alloc](https://github.com/thi-ng/umbrella/tree/develop/packages/malloc) in the EVM 
+### This project is an attempt to replicate the [tiny alloc](https://github.com/thi-ng/umbrella/tree/develop/packages/malloc) in the EVM 
 
 ## Public interface 
 
 ### functionalites:
  
-##### For the initial stage, the public interface of the memory pool class will include the following: 
+#### For the initial stage, the public interface of the memory pool class will include the following: 
 
-##### - Allocate
+- Allocate
 
    Returns a pointer (as a u256) to address in heap space or 0 if allocation failed  
 
