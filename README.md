@@ -5,27 +5,38 @@
 
 ## Public interface 
 
-###functionalites:
+### functionalites:
  
-##### For the initial stage, the public interface of the memory pool class will include the following: 
+For the initial stage, the public interface of the memory pool class will include the following: 
 
 	- Allocate
+
 		Returns a pointer (as a u256) to address in heap space or 0 if allocation failed  
+
 	- Reallocate 
+
 		Attempts to adjust the size of the block at the given allocated address to new size or if not possible, attempt to allocate a new block and copies contents of current block (if successful, automatically frees old address). Returns new address if successful or else 0.
+
 	- Free
+
 		Releases given address or array view back into the pool. Returns true if successful.
+
 	- Free All
+
 		Frees all allocated blocks, essentially resets the pool.
+
 	- listStats
+
 		Returns pool statistics
 
 
 ### Coalescing && Splitting:
 
 ##### Further optimizations that are being performed under the hood in order to preserver memory space, the goal of each is the following
+
 	- Coalescing
 		The allocator supports coalescing of free memory blocks to minimize fragmentation of the managed address space.
+
 	-  Splitting 
 		In order to avoid unnecessary growing of the heap top, the allocator can split existing free blocks if the user requests allocating a smaller size than that of a suitable free block available.
 
