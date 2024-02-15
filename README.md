@@ -30,7 +30,7 @@
 
 ## Coalescing && Splitting:
 
-### Further optimizations that are being performed under the hood in order to preserver memory space, the goal of each is the following
+### Further optimizations that are being performed under the hood in order to preserve memory space
 
 #### Coalescing
  
@@ -42,25 +42,12 @@
 
 ## Memory layout 
 
-### A single memory block consists of:
-
-#### Size
-
-   The size of the block (inluding header & padding)
-
-#### Next
- 
-   Pointer to next block of the same type (free, used)
-
-#### Data
-
-   Data to be held inside the block (depending on how this project pans out, this can be a memory buffer)
-
-### The following constants that can be found in the code, represent the following values
+### The state of each memory pool consists of: 
 
 #### free 
 
    pointer to first free block header
+
 #### used 
 
   pointer to first used block header
@@ -76,6 +63,20 @@
 #### minSplit 
 
    minimum block size allowed for splitting
+
+### A single memory block consists of:
+
+#### Size
+
+   The size of the block (inluding header & padding)
+
+#### Next
+ 
+   Pointer to next block of the same type (free, used)
+
+#### Data
+
+   Data to be held inside the block (depending on how this project pans out, this can be a memory buffer)
 
 ### Note
 
