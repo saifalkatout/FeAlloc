@@ -32,11 +32,11 @@
 
 ### Further optimizations that are being performed under the hood in order to preserver memory space, the goal of each is the following
 
-- Coalescing
+#### Coalescing
  
    The allocator supports coalescing of free memory blocks to minimize fragmentation of the managed address space.
 
--  Splitting 
+#### Splitting 
 
    In order to avoid unnecessary growing of the heap top, the allocator can split existing free blocks if the user requests allocating a smaller size than that of a suitable free block available.
 
@@ -44,36 +44,36 @@
 
 ### A single memory block consists of:
 
-- Size
+#### Size
 
    The size of the block (inluding header & padding)
 
-- Next
+#### Next
  
    Pointer to next block of the same type (free, used)
 
-- Data
+#### Data
 
    Data to be held inside the block (depending on how this project pans out, this can be a memory buffer)
 
 ### The following constants that can be found in the code, represent the following values
 
-- free 
+#### free 
 
    pointer to first free block header
-- used 
-   
+#### used 
+
   pointer to first used block header
 
-- top
+#### top
 
    address of next new block header
 
-- end
+#### end
 
    end address of managed region 
 
-- minSplit 
+#### minSplit 
 
    minimum block size allowed for splitting
 
