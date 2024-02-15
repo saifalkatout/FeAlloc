@@ -4,8 +4,6 @@
 ### This project is an attempt to replicate the [tiny alloc](https://github.com/thi-ng/umbrella/tree/develop/packages/malloc) in the EVM 
 
 ## Public interface 
-
-### functionalites:
  
 #### For the initial stage, the public interface of the memory pool class will include the following: 
 
@@ -30,7 +28,7 @@
    Returns pool statistics
 
 
-### Coalescing && Splitting:
+## Coalescing && Splitting:
 
 #### Further optimizations that are being performed under the hood in order to preserver memory space, the goal of each is the following
 
@@ -42,7 +40,7 @@
 
    In order to avoid unnecessary growing of the heap top, the allocator can split existing free blocks if the user requests allocating a smaller size than that of a suitable free block available.
 
-### Memory layout 
+## Memory layout 
 
 #### A single memory block consists of:
 
@@ -79,6 +77,6 @@
 
    minimum block size allowed for splitting
 
-##### Note
+### Note
 
-###### this project is still WIP, even for the initial stage
+###### this project is still a WIP, the initial stage is not complete
