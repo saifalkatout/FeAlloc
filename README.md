@@ -1,7 +1,7 @@
 
 # Fe Allocator 
 
-### This project is an attempt to replicate the [tiny alloc](https://github.com/thi-ng/umbrella/tree/develop/packages/malloc) in the EVM 
+### This project is an attempt to replicate [Tiny Alloc](https://github.com/thi-ng/umbrella/tree/develop/packages/malloc) in the EVM 
 
 ## Public interface 
  
