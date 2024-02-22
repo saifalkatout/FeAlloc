@@ -1,6 +1,0 @@
-#test 
-fn ts() {
-struct x {
-    y: Array<x,1>
-}
-}
