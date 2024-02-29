@@ -27,325 +27,322 @@ struct boolEmitter {
 struct mempool { 
   pub start: u256
   pub u8: Array<u8, 8>
-	pub u32: Array<u32, 8>
-	pub state: Array<u32, 24> 
-
+  pub u32: Array<u32, 8>
+  pub state: Array<u32, 24> 
 
   pub fn listStats(self, block: u256) -> (u256,u256){
     let mut b: u256 = block
-	let mut count: u256 = 0
+    let mut count: u256 = 0
     let mut size: u256 = 0
     while(b > 0){ 
       count += 1
       size += self.blockSize(block)
-	  b = self.blockNext(ctx,block)
-
+      b = self.blockNext(ctx,block)
     }
+  
     return (count,size)
+  
   }
-
-
-
-	fn blockSize(self,block: u256) -> u32{
-		return self.u32[block>>2 + MEM_BLOCK_SIZE]
-	}
-   fn blockNext(self,ctx: Context, block: u256) -> u32{
-	ctx.emit(numberEmitter(value: self.u32[(block>>2) + MEM_BLOCK_NEXT]))
-	return 0
+  fn blockSize(self,block: u256) -> u32 {
+    return self.u32[block>>2 + MEM_BLOCK_SIZE]
+  }
+  fn blockNext(self,ctx: Context, block: u256) -> u32{
+    ctx.emit(numberEmitter(value: self.u32[(block>>2) + MEM_BLOCK_NEXT]))
+    return 0
     return self.u32[(block>>2) + MEM_BLOCK_NEXT]
   }
 
   pub fn malloc(mut self, mut ctx: Context, bytes: u32) -> u256{
-		if (bytes <= 0) {
-			return 0;
-		}
-		let paddedSize: u32 = bytes;
-		let end: u32 = self.state[STATE_END]
-		let mut top: u32 = self.state[STATE_TOP]
-		let mut block: u32 = self.state[STATE_FREE]
-		let mut prev: u32 = 0;
-		while (block > 0) {
-			let blockSize: u32 = self.blockSize(block)
-			let isTop:bool = u256(block) + blockSize >= top;
-		if  isTop or (blockSize >= paddedSize) { //check for padded
-				return self.mallocTop(
-					ctx,
-					block,
-					prev,
-					blockSize,
-					paddedSize,
-					isTop
-				);
-			}
-			prev = block;
-			self.state[STATE_FREE] = self.blockNext(ctx, block)
-			return 0
-		}
-		block = top;
-		top = block + paddedSize
-		ctx.emit(boolEmitter(value: top <= end))
-		if (top <= end) {
-			self.initBlock(block, size: paddedSize, next: self.state[STATE_USED]);
-			self.state[STATE_USED] = block;
-			self.state[STATE_TOP] = top;
-			return mempool::blockDataAddress(blockAddress: block);
-		}
-		return 0;
-	}
+    if (bytes <= 0) {
+      return 0;
+    }
+    let paddedSize: u32 = bytes;
+    let end: u32 = self.state[STATE_END]
+    let mut top: u32 = self.state[STATE_TOP]
+    let mut block: u32 = self.state[STATE_FREE]
+    let mut prev: u32 = 0;
+    while (block > 0) {
+      let blockSize: u32 = self.blockSize(block)
+      let isTop:bool = u256(block) + blockSize >= top;
+      if  isTop or (blockSize >= paddedSize) { //check for padded
+        return self.mallocTop(
+                    ctx,
+                    block,
+                    prev,
+                    blockSize,
+                    paddedSize,
+                    isTop
+                );
+      }
+      prev = block;
+      self.state[STATE_FREE] = self.blockNext(ctx, block)
+      return 0
+    }
+    block = top;
+    top = block + paddedSize
+    ctx.emit(boolEmitter(value: top <= end))
+    if (top <= end) {
+      self.initBlock(block, size: paddedSize, next: self.state[STATE_USED]);
+      self.state[STATE_USED] = block;
+      self.state[STATE_TOP] = top;
+      return mempool::blockDataAddress(blockAddress: block);
+    }
+    return 0;
+    }
 
-	fn mallocTop(mut self, mut ctx: Context,block: u32,prev: u32,blockSize: u32,paddedSize: u32,isTop: bool) -> u256 {
-		if (isTop and (block) + paddedSize > self.state[STATE_END]){ return 0 }
-		if (prev > 0) {
-			self.unlinkBlock(prev, block);
-		} else {
-			self.state[STATE_FREE] = self.blockNext(ctx,block);
-		}
-		self.setBlockNext(block, next: self.state[STATE_USED]);
-		self.state[STATE_USED] = block;
-		if (isTop) {
-			self.state[STATE_TOP] = block + self.setBlockSize(block, size: paddedSize);
-		} else if self.state[STATE_FLAGS] == 3{ //check line 338 in original code
-			let excess: u32 = blockSize - paddedSize;
-			if excess >= 16 { // configurable in options in TA
-				self.splitBlock(block, blockSize: paddedSize, excess)
-			} 
-		}
-    	ctx.emit(numberEmitter(value: mempool::blockDataAddress(blockAddress: block)))
-		return mempool::blockDataAddress(blockAddress: block);
-	}
-
-
-	fn blockDataAddress(blockAddress: u256) -> u256 { 
-		if blockAddress > 0 {
-			return blockAddress + SIZEOF_MEM_BLOCK
-		}
-		else { 
-			return 0
-		}
-	}
-	fn unlinkBlock(mut self, prev: u256, block: u256) {
-		self.setBlockNext(block: prev, next: self.blockNext(ctx,block));
-	}
-
-	fn setBlockNext(mut self, block: u256, next: u32) {
-		self.u32[(block >> 2) + MEM_BLOCK_NEXT] = next;
-	}
-
-	fn setBlockSize(mut self, block: u256, size: u32) -> u32{
-		self.u32[(block >> 2) + MEM_BLOCK_SIZE] = size;
-		return size;
-	}
+    fn mallocTop(mut self, mut ctx: Context,block: u32,prev: u32,blockSize: u32,paddedSize: u32,isTop: bool) -> u256 {
+      if (isTop and (block) + paddedSize > self.state[STATE_END]){ return 0 }
+        if (prev > 0) {
+            self.unlinkBlock(prev, block);
+        } else {
+            self.state[STATE_FREE] = self.blockNext(ctx,block);
+        }
+        self.setBlockNext(block, next: self.state[STATE_USED]);
+        self.state[STATE_USED] = block;
+        if (isTop) {
+            self.state[STATE_TOP] = block + self.setBlockSize(block, size: paddedSize);
+        } else if self.state[STATE_FLAGS] == 3{ //check line 338 in original code
+            let excess: u32 = blockSize - paddedSize;
+            if excess >= 16 { // configurable in options in TA
+                self.splitBlock(block, blockSize: paddedSize, excess)
+            } 
+        }
+        ctx.emit(numberEmitter(value: mempool::blockDataAddress(blockAddress: block)))
+        return mempool::blockDataAddress(blockAddress: block);
+    }
 
 
-	fn initBlock(mut self, block: u32, size: u32, next: u32) -> u32 {
-		let ddd: u32 = block >> 2; //there is no unsigned shift right (no need ig) ?? idx seems to be a reserved word ?? 
-		self.u32[ddd + MEM_BLOCK_SIZE] = size;
-		self.u32[ddd + MEM_BLOCK_NEXT] = next;
-		return block;
-	}
+    fn blockDataAddress(blockAddress: u256) -> u256 { 
+        if blockAddress > 0 {
+            return blockAddress + SIZEOF_MEM_BLOCK
+        }
+        else { 
+            return 0
+        }
+    }
+    fn unlinkBlock(mut self, prev: u256, block: u256) {
+        self.setBlockNext(block: prev, next: self.blockNext(ctx,block));
+    }
 
-	fn splitBlock(mut self, block: u32, blockSize: u32, excess: u32) {
-		self.insert(
-			block: self.initBlock(
-				block: block + self.setBlockSize(block, size: blockSize),
-				size: excess,
-				next: 0
-			)
-		);
-		self.compact()
-	}
+    fn setBlockNext(mut self, block: u256, next: u32) {
+        self.u32[(block >> 2) + MEM_BLOCK_NEXT] = next;
+    }
 
-	fn insert(mut self, block: u32) {
-		let mut ptr: u32 = self.state[STATE_FREE];
-		let mut prev: u32 = 0;
-		while (ptr > 0) {
-			if (block <= ptr){
-				break;
-			} 
-			prev = ptr;
-			ptr = self.blockNext(block: ptr);
-		}
-		if (prev > 0) {
-			self.setBlockNext(block: prev, next: block);
-		} else {
-			self.state[STATE_FREE] = block;
-		}
-		self.setBlockNext(block, next: ptr);
-	}
+    fn setBlockSize(mut self, block: u256, size: u32) -> u32{
+        self.u32[(block >> 2) + MEM_BLOCK_SIZE] = size;
+        return size;
+    }
 
-	pub fn realloc(mut self, mut ctx: Context, ptr: u32, bytes: u32) -> u256 {
-		if (bytes <= 0) {
-			return 0;
-		}
-		let oldAddr: u32 = mempool::blockSelfAddress(dataAddress: ptr);
-		let mut newAddr: u32 = 0;
-		let mut block: u32 = self.state[STATE_USED];
-		let mut blockEnd: u32 = 0;
-		let mut pair1: (u32,u32) = (0,0);
-		while (block > 0) {
-			if (block == oldAddr) {
-				pair1 = self.reallocBlock(ctx, block, bytes);
-				newAddr = pair1.item0
-				blockEnd = pair1.item1
-				break;
-			}
-			block = self.blockNext(ctx,block);
-		}
-		// copy old block contents to new addr
-		if (newAddr > 0 and newAddr != oldAddr) {
-			// self.u8.copyWithin(    ---copyWithin copies data from index arg0 to index arg1 and ending at arg2
-			// 	blockDataAddress(newAddr),
-			// 	blockDataAddress(oldAddr),
-			// 	blockEnd
-			// );
-		}
-		return mempool::blockDataAddress(blockAddress: newAddr);
-	}
 
-	fn reallocBlock(mut self, mut ctx: Context, block: u32, bytes: u32)  -> (u32,u32) {
-		let blockSize: u32 = self.u32[(block >> 2) + MEM_BLOCK_SIZE];
-		let blockEnd: u32 = block + blockSize;
-		let isTop: bool = blockEnd >= self.state[STATE_TOP];
-		self.state[STATE_ALIGN] = bytes + SIZEOF_MEM_BLOCK
-		let paddedSize: u32 = self.state[STATE_ALIGN]
-		// shrink & possibly split existing block
-		if (paddedSize <= blockSize) {
-			if (false) { //self do split
-				let excess: u32 = blockSize - paddedSize;
-				if (excess >= self.state[STATE_MIN_SPLIT]) {
-					self.splitBlock(block, blockSize: paddedSize, excess);
-				} else if (isTop) {
-					self.state[STATE_TOP] = block + paddedSize;
-				}
-			} else if (isTop) {
-				self.state[STATE_TOP] = block + paddedSize;
-			}
-			return (block, blockEnd);
-		}
-		// try to enlarge block if current top
-		if (isTop and block + paddedSize < self.state[STATE_END]) {
-			self.state[STATE_TOP] = block + self.setBlockSize(block, size: paddedSize);
-			return (block, blockEnd);
-		}
-		// fallback to free & malloc
-		//this.free(block);
-		return (mempool::blockSelfAddress(dataAddress: u32(self.malloc(ctx, bytes))), blockEnd)
-	}
+    fn initBlock(mut self, block: u32, size: u32, next: u32) -> u32 {
+        let ddd: u32 = block >> 2; //there is no unsigned shift right (no need ig) ?? idx seems to be a reserved word ?? 
+        self.u32[ddd + MEM_BLOCK_SIZE] = size;
+        self.u32[ddd + MEM_BLOCK_NEXT] = next;
+        return block;
+    }
 
-	//NEEDS THE FOLLOWING FEATURES: 1) TypedArray 2) Some type 3) Generic args 4) array type with byteoffset and BPE 5) Ternary operator
-	// fn reallocArray<T extends TypedArray>(array: T, num: u32) -> T {
-	// 	if(array.buffer !== self.buf)
+    fn splitBlock(mut self, block: u32, blockSize: u32, excess: u32) {
+        self.insert(
+            block: self.initBlock(
+                block: block + self.setBlockSize(block, size: blockSize),
+                size: excess,
+                next: 0
+            )
+        );
+        self.compact()
+    }
 
-	// 	let addr: u256 self.realloc(array.byteOffset,
-	// 	num * array.BYTES_PER_ELEMENT)
+    fn insert(mut self, block: u32) {
+        let mut ptr: u32 = self.state[STATE_FREE];
+        let mut prev: u32 = 0;
+        while (ptr > 0) {
+            if (block <= ptr){
+                break;
+            } 
+            prev = ptr;
+            ptr = self.blockNext(block: ptr);
+        }
+        if (prev > 0) {
+            self.setBlockNext(block: prev, next: block);
+        } else {
+            self.state[STATE_FREE] = block;
+        }
+        self.setBlockNext(block, next: ptr);
+    }
 
-	// 	return addr ? new array: undefined;
-	// }
+    pub fn realloc(mut self, mut ctx: Context, ptr: u32, bytes: u32) -> u256 {
+        if (bytes <= 0) {
+            return 0;
+        }
+        let oldAddr: u32 = mempool::blockSelfAddress(dataAddress: ptr);
+        let mut newAddr: u32 = 0;
+        let mut block: u32 = self.state[STATE_USED];
+        let mut blockEnd: u32 = 0;
+        let mut pair1: (u32,u32) = (0,0);
+        while (block > 0) {
+            if (block == oldAddr) {
+                pair1 = self.reallocBlock(ctx, block, bytes);
+                newAddr = pair1.item0
+                blockEnd = pair1.item1
+                break;
+            }
+            block = self.blockNext(ctx,block);
+        }
+        // copy old block contents to new addr
+        if (newAddr > 0 and newAddr != oldAddr) {
+            // self.u8.copyWithin(    ---copyWithin copies data from index arg0 to index arg1 and ending at arg2
+            // 	blockDataAddress(newAddr),
+            // 	blockDataAddress(oldAddr),
+            // 	blockEnd
+            // );
+        }
+        return mempool::blockDataAddress(blockAddress: newAddr);
+    }
 
-	//How to have OR in arg type ??
-	pub fn free(mut self, mut ctx: Context, ptr: u32) -> bool {
-		let mut addr: u32;
-		addr = ptr;
-		addr = mempool::blockSelfAddress(dataAddress: addr);
-		let mut block: u32 = self.state[STATE_USED];;
-		let mut prev: u256 = 0;
-		while (block > 0) {
-			if (block == addr) {
-				if (prev > 0) {
-					self.unlinkBlock(prev, block);
-				} else {
-					self.state[STATE_USED] = self.blockNext(ctx,block);
-				}
-				self.insert(block);
-				self.compact()
-				return true;
-			}
-			prev = block;
-			block = self.blockNext(ctx,block);
-		}
-		return false;
-	}
+    fn reallocBlock(mut self, mut ctx: Context, block: u32, bytes: u32)  -> (u32,u32) {
+        let blockSize: u32 = self.u32[(block >> 2) + MEM_BLOCK_SIZE];
+        let blockEnd: u32 = block + blockSize;
+        let isTop: bool = blockEnd >= self.state[STATE_TOP];
+        self.state[STATE_ALIGN] = bytes + SIZEOF_MEM_BLOCK
+        let paddedSize: u32 = self.state[STATE_ALIGN]
+        // shrink & possibly split existing block
+        if (paddedSize <= blockSize) {
+            if (false) { //self do split
+                let excess: u32 = blockSize - paddedSize;
+                if (excess >= self.state[STATE_MIN_SPLIT]) {
+                    self.splitBlock(block, blockSize: paddedSize, excess);
+                } else if (isTop) {
+                    self.state[STATE_TOP] = block + paddedSize;
+                }
+            } else if (isTop) {
+                self.state[STATE_TOP] = block + paddedSize;
+            }
+            return (block, blockEnd);
+        }
+        // try to enlarge block if current top
+        if (isTop and block + paddedSize < self.state[STATE_END]) {
+            self.state[STATE_TOP] = block + self.setBlockSize(block, size: paddedSize);
+            return (block, blockEnd);
+        }
+        // fallback to free & malloc
+        //this.free(block);
+        return (mempool::blockSelfAddress(dataAddress: u32(self.malloc(ctx, bytes))), blockEnd)
+    }
 
-	fn blockSelfAddress(dataAddress: u32) -> u32 { 
-			if dataAddress > 0 {
-				return dataAddress - SIZEOF_MEM_BLOCK
-			}
-			else {
-				return 0
-			}
-	}
+    //NEEDS THE FOLLOWING FEATURES: 1) TypedArray 2) Some type 3) Generic args 4) array type with byteoffset and BPE 5) Ternary operator
+    // fn reallocArray<T extends TypedArray>(array: T, num: u32) -> T {
+    // 	if(array.buffer !== self.buf)
 
-	pub fn freeAll(mut self) {
-		self.state[STATE_FREE] = 0;
-		self.state[STATE_USED] = 0;
-		self.state[STATE_TOP] = u32(self.start + SIZEOF_STATE + SIZEOF_MEM_BLOCK)
-	}
+    // 	let addr: u256 self.realloc(array.byteOffset,
+    // 	num * array.BYTES_PER_ELEMENT)
 
-	fn compact(mut self, mut ctx: Context) -> bool {
-		let mut block: u32 = self.state[STATE_FREE]
-		let mut prev: u32 = 0
-		let mut scan: u32 = 0
-		let mut scanPrev: u32
-		let mut res: bool = false
+    // 	return addr ? new array: undefined;
+    // }
 
-		while(block > 0){
-			scanPrev = block
-			scan = self.blockNext(ctx,block)
+    //How to have OR in arg type ??
+    pub fn free(mut self, mut ctx: Context, ptr: u32) -> bool {
+        let mut addr: u32;
+        addr = ptr;
+        addr = mempool::blockSelfAddress(dataAddress: addr);
+        let mut block: u32 = self.state[STATE_USED];;
+        let mut prev: u256 = 0;
+        while (block > 0) {
+            if (block == addr) {
+                if (prev > 0) {
+                    self.unlinkBlock(prev, block);
+                } else {
+                    self.state[STATE_USED] = self.blockNext(ctx,block);
+                }
+                self.insert(block);
+                self.compact()
+                return true;
+            }
+            prev = block;
+            block = self.blockNext(ctx,block);
+        }
+        return false;
+    }
 
-			while(scan > 0 and scanPrev + self.blockSize(block: scanPrev) == scan){
-				scanPrev = scan
-				scan = self.blockNext(ctx,block)
-			}
+    fn blockSelfAddress(dataAddress: u32) -> u32 { 
+            if dataAddress > 0 {
+                return dataAddress - SIZEOF_MEM_BLOCK
+            }
+            else {
+                return 0
+            }
+    }
 
-			if(scanPrev != block){
-				let newSize: u32 = scanPrev - block + self.blockSize(block: scanPrev)
-				self.setBlockSize(block, size: newSize)
-				let next: u32 = self.blockNext(ctx, block: scanPrev)
-				let mut tmp: u32 = self.blockNext(ctx, block: scanPrev)
-				while(tmp > 0 and tmp != next){
-					let tn: u32 = self.blockNext(ctx, block: tmp)
-					self.setBlockNext(block: tmp, next: 0)
-					tmp = tn
-				}
+    pub fn freeAll(mut self) {
+        self.state[STATE_FREE] = 0;
+        self.state[STATE_USED] = 0;
+        self.state[STATE_TOP] = u32(self.start + SIZEOF_STATE + SIZEOF_MEM_BLOCK)
+    }
 
-				self.setBlockNext(block, next)
-				res = true
-			}
+    fn compact(mut self, mut ctx: Context) -> bool {
+        let mut block: u32 = self.state[STATE_FREE]
+        let mut prev: u32 = 0
+        let mut scan: u32 = 0
+        let mut scanPrev: u32
+        let mut res: bool = false
 
-			if(block + self.blockSize(block) >= self.state[STATE_TOP]){
-				self.state[STATE_TOP] = block
-				if(prev > 0){
-					self.unlinkBlock(prev, block)
-				}
-				else {
-					self.state[STATE_FREE] = self.blockNext(ctx,block)
-				}
+        while(block > 0){
+            scanPrev = block
+            scan = self.blockNext(ctx,block)
 
-			}
-			prev = block
-			block = self.blockNext(ctx,block)
+            while(scan > 0 and scanPrev + self.blockSize(block: scanPrev) == scan){
+                scanPrev = scan
+                scan = self.blockNext(ctx,block)
+            }
 
-		}
+            if(scanPrev != block){
+                let newSize: u32 = scanPrev - block + self.blockSize(block: scanPrev)
+                self.setBlockSize(block, size: newSize)
+                let next: u32 = self.blockNext(ctx, block: scanPrev)
+                let mut tmp: u32 = self.blockNext(ctx, block: scanPrev)
+                while(tmp > 0 and tmp != next){
+                    let tn: u32 = self.blockNext(ctx, block: tmp)
+                    self.setBlockNext(block: tmp, next: 0)
+                    tmp = tn
+                }
 
-		return res
+                self.setBlockNext(block, next)
+                res = true
+            }
 
-	}
+            if(block + self.blockSize(block) >= self.state[STATE_TOP]){
+                self.state[STATE_TOP] = block
+                if(prev > 0){
+                    self.unlinkBlock(prev, block)
+                }
+                else {
+                    self.state[STATE_FREE] = self.blockNext(ctx,block)
+                }
 
-	// fn align(addr: u32, size: u32) -> u32{
-	// 	let mut a:u32 = addr
-	// 	let mut s:u32 = size
-	// 	s -= 1
-	// 	return a + s and ~s
-	// }
+            }
+            prev = block
+            block = self.blockNext(ctx,block)
 
-	pub fn new(mut self) -> mempool{
-		self.u8 =  [0,0,0,0,0,0,0,0]
-		self.u32 =  [0,0,0,0,0,0,0,0]
-		self.state =  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
-		return self
-	}
+        }
 
-	
+        return res
+
+    }
+
+    // fn align(addr: u32, size: u32) -> u32{
+    // 	let mut a:u32 = addr
+    // 	let mut s:u32 = size
+    // 	s -= 1
+    // 	return a + s and ~s
+    // }
+
+    pub fn new(mut self) -> mempool{
+        self.u8 =  [0,0,0,0,0,0,0,0]
+        self.u32 =  [0,0,0,0,0,0,0,0]
+        self.state =  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+        return self
+    }
+
+    
 }
 // impl Default for mempool {
 //     fn default() -> mempool {
@@ -388,12 +385,12 @@ struct mempool {
 
 #test
 fn t4(mut ctx: Context) {
-	let mut _u8: Array<u8,8> =  [0,0,0,0,0,0,0,0]
-	let mut _u32: Array<u32,8> =  [0,0,0,0,0,0,0,0]
-	let mut state: Array<u32,24> =  [8,0,23,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0]
+    let mut _u8: Array<u8,8> =  [0,0,0,0,0,0,0,0]
+    let mut _u32: Array<u32,8> =  [0,0,0,0,0,0,0,0]
+    let mut state: Array<u32,24> =  [8,0,23,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0]
     let mut poolA: mempool = mempool(start: 0,u8: _u8, u32: _u32, state)
-	poolA.free(ctx, ptr: 100)
+    poolA.free(ctx, ptr: 100)
     ctx.emit(numberEmitter(value: poolA.malloc(ctx, bytes: 2)))
-	}
+    }
 
 
